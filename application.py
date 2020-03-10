@@ -120,8 +120,39 @@ def quote():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """Register user"""
-    return apology("TODO")
+    """Register user ---DONE!"""
+    session.clear()
+    if request.method == 'POST':
+        username = request.form["username"]
+        password = request.form['password']
+        confirm_password = request.form['confirmation']
+
+        if not username:
+            return apology("must provide username", 403)
+
+        elif not password:
+            return apology("must provide password", 403)
+
+        elif not confirm_password:
+            return apology("must provide confirm password", 403)
+
+        elif password != confirm_password:
+            return apology("password and confirm-password must match", 403)
+
+        row = db.execute('SELECT * FROM users WHERE username= :username',
+                         username = username)
+        if len(row) > 0:
+            return apology("Username already taken", 403)
+
+        else:
+            db.execute("INSERT INTO users(username,hash) VALUES(:username, :hash)",
+                       username=username,
+                       hash=generate_password_hash(password))
+
+        return redirect("/login")
+
+    else:
+        return render_template("register.html")
 
 
 @app.route("/sell", methods=["GET", "POST"])

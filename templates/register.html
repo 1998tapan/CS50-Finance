@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Registration
+{% endblock %}
+
+{%  block main %}
+
+    <form id="reg-form" action="/register" method="post">
+        <div class="form-group">
+            <input id='username' autocomplete="off" autofocus class="form-control" type="text" name="username" placeholder="Username">
+        </div>
+
+        <div class="form-group">
+            <input id='password' class="form-control" type="password" name="password" placeholder="Password">
+        </div>
+
+        <div class="form-group">
+            <input id='confirm-password' class="form-control" type="password" name="confirmation" placeholder="Password">
+        </div>
+
+        <button class="btn btn-primary" type="submit" >Register</button>
+    </form>
+
+    <script>
+        document.getElementById("reg-form").onsubmit = function () {
+            if (!document.getElementById("username").value){
+                alert("You must provide your username");
+                return false;
+            }
+            else if(!document.getElementById("password").value){
+                alert("You must provide password");
+                return false;
+            }
+
+            else if(!document.getElementById("confirm-password").value){
+                alert("You must provide confirm-password");
+                return false;
+            }
+            return true;
+        };
+    </script>
+
+{%  endblock %}
