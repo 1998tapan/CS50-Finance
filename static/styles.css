@@ -38,10 +38,19 @@ main
 
     /* center contents */
     text-align: center;
+
 }
 
 main img
 {
     /* constrain images on small screens */
     max-width: 100%;
+}
+
+.form-border{
+    /* border */
+    border: #537fbe 3px solid;
+    width: 30%;
+    margin: auto;
+    padding: 20px;
 }
