@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+
+{% block title%}
+    Quoted
+{%  endblock %}
+
+{%  block main %}
+    <h3>Quoted</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Stock</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ stock_dict['symbol'] }}</td>
+                <td>{{ stock_dict['name'] }}</td>
+                <td>{{ stock_dict['price'] }}</td>
+            </tr>
+        </tbody>
+    </table>
+{% endblock %}

@@ -114,8 +114,18 @@ def logout():
 @app.route("/quote", methods=["GET", "POST"])
 @login_required
 def quote():
-    """Get stock quote."""
-    return apology("TODO")
+    if request.method == 'POST':
+        """Get stock quote."""
+        symbol = request.form['symbol']
+        stock_dict = lookup(symbol)
+        if not stock_dict:
+            return apology("Missing symbol", 403)
+
+        else:
+            return render_template("quoted.html", stock_dict=stock_dict)
+
+    else:
+        return render_template("quote.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -140,7 +150,7 @@ def register():
             return apology("password and confirm-password must match", 403)
 
         row = db.execute('SELECT * FROM users WHERE username= :username',
-                         username = username)
+                         username=username)
         if len(row) > 0:
             return apology("Username already taken", 403)
 
