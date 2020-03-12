@@ -15,4 +15,15 @@
     <button class="btn btn-primary" type="submit">Get Quote</button>
 
     </form>
+
+    <script>
+        document.getElementById('quote-form').onsubmit=function () {
+            if(!document.getElementById('symbol').value){
+                alert("You must provide stock symbol");
+                return false;
+            }
+            return true;
+        }
+    </script>
+
 {%  endblock %}

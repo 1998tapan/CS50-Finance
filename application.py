@@ -35,6 +35,7 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
 # Configure CS50 Library to use SQLite database
+# <class 'cs50.sql.SQL'>
 db = SQL("sqlite:///finance.db")
 
 # Make sure API key is set
@@ -52,8 +53,80 @@ def index():
 @app.route("/buy", methods=["GET", "POST"])
 @login_required
 def buy():
-    """Buy shares of stock"""
-    return apology("TODO")
+    if request.method == 'POST':
+        """Buy shares of stock"""
+
+        # take symbols and shares from user
+        symbol = request.form['symbol']
+        shares = int(request.form['shares'])
+
+        # validate them
+        if not symbol:
+            return apology("Must provide a symbol", 403)
+
+        if not shares:
+            return apology("Must provide the number of shares", 403)
+
+        if shares < 1:
+            return apology("Invalid number of shares", 403)
+
+        # get company_name and their current price
+        stock_dict = lookup(symbol)
+        # validate it
+        if not stock_dict:
+            return apology("Invalid stock symbol", 403)
+
+        company_name = stock_dict['name']
+        stock_price = float(stock_dict['price'])
+        symbol = stock_dict['symbol']
+
+        # take user_id to identify user
+        user_id = int(session["user_id"])
+
+        # total cost for purchasing shares -> this will be deducted from user's cash
+        total_cost = float(shares * stock_price)
+
+        # get user data from database
+        # <class 'list'>
+        # [{'id': 2, 'username': 'Tapan681', 'hash': 'pwd hash', 'cash': 10000}]
+        user_data = db.execute('SELECT * FROM users WHERE id = :id',
+                               id=user_id)
+        user_cash = float(user_data[0]['cash'])
+        # now we have all the data
+
+        # check if user has enough cash to buy shares
+        if user_cash < total_cost:
+            return apology("Insufficient funds", 403)
+
+        # add stocks purchase info to database
+        # and if successful, deduct cash from user
+        try:
+            db.execute(
+                'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price) VALUES(:uid, :name, :sym, :share, :price)',
+                uid=user_id,
+                name=company_name,
+                sym=symbol,
+                share=shares,
+                price=stock_price)
+
+            db.execute('UPDATE users SET cash = :cash WHERE id=:id',
+                       cash=(user_cash-total_cost),
+                       id=user_id)
+
+        except Exception as e:
+            return apology(str(e), 403)
+
+        return redirect("/")
+
+    else:
+        return render_template("buy.html")
+
+
+"""
+        if val > 0:
+            db.execute('UPDATE')
+            return apology("success !")
+"""
 
 
 @app.route("/history")
