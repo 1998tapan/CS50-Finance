@@ -47,7 +47,35 @@ if not os.environ.get("API_KEY"):
 @login_required
 def index():
     """Show portfolio of stocks"""
-    return apology("TODO")
+    # get user_id
+    user_id = int(session['user_id'])
+    try:
+        # get user's total shares company wise and stock symbol
+        user_data = db.execute("SELECT company_symbol AS symbol, SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id GROUP BY company_symbol",
+                               user_id=user_id)
+        # fetch current price, company_name  of the stock from API via stock symbol
+        # and add them to it's respective stock in user_data dict
+        total_user_money = 0
+        for row in user_data:
+            stock_info = lookup(row['symbol'])
+            row['name'] = stock_info['name']
+            # price is converted to float by helper method lookup()
+            row['price'] = usd(stock_info['price'])
+            # shares is stored as an integer in database
+            total_shares_cost = row['shares'] * stock_info['price']
+            total_user_money += total_shares_cost
+            row['total'] = usd(total_shares_cost)
+
+        # [{'cash': 7296.79}]
+        user_cash = db.execute("SELECT cash FROM users WHERE id = :user_id",
+                               user_id=user_id)
+        user_cash = user_cash[0]['cash']
+        total_user_money += user_cash
+
+    except Exception as e:
+        return apology(e, 500)
+
+    return render_template("index.html", user_data=user_data, user_cash=usd(user_cash), total_user_money=usd(total_user_money))
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -102,12 +130,13 @@ def buy():
         # and if successful, deduct cash from user
         try:
             db.execute(
-                'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price) VALUES(:uid, :name, :sym, :share, :price)',
+                'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price, total_cost) VALUES(:uid, :name, :sym, :share, :price, :total_cost)',
                 uid=user_id,
                 name=company_name,
                 sym=symbol,
                 share=shares,
-                price=stock_price)
+                price=stock_price,
+                total_cost=total_cost)
 
             db.execute('UPDATE users SET cash = :cash WHERE id=:id',
                        cash=(user_cash-total_cost),
