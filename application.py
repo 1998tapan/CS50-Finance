@@ -67,9 +67,10 @@ def index():
             row['total'] = usd(total_shares_cost)
 
         # [{'cash': 7296.79}]
-        user_cash = db.execute("SELECT cash FROM users WHERE id = :user_id",
+        user = db.execute("SELECT username, cash FROM users WHERE id = :user_id",
                                user_id=user_id)
-        user_cash = user_cash[0]['cash']
+        user_cash = user[0]['cash']
+        user_name = user[0]['username']
         total_user_money += user_cash
 
     except Exception as e:
@@ -144,7 +145,7 @@ def buy():
 
         except Exception as e:
             return apology(str(e), 403)
-
+        flash("Purchase successful !!")
         return redirect("/")
 
     else:
@@ -260,7 +261,7 @@ def register():
             db.execute("INSERT INTO users(username,hash) VALUES(:username, :hash)",
                        username=username,
                        hash=generate_password_hash(password))
-
+        flash("Registration successful !!")
         return redirect("/login")
 
     else:
