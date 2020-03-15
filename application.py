@@ -51,8 +51,9 @@ def index():
     user_id = int(session['user_id'])
     try:
         # get user's total shares company wise and stock symbol
-        user_data = db.execute("SELECT company_symbol AS symbol, SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id GROUP BY company_symbol",
-                               user_id=user_id)
+        user_data = db.execute(
+            "SELECT company_symbol AS symbol, SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id GROUP BY company_symbol",
+            user_id=user_id)
         # fetch current price, company_name  of the stock from API via stock symbol
         # and add them to it's respective stock in user_data dict
         total_user_money = 0
@@ -68,7 +69,7 @@ def index():
 
         # [{'cash': 7296.79}]
         user = db.execute("SELECT username, cash FROM users WHERE id = :user_id",
-                               user_id=user_id)
+                          user_id=user_id)
         user_cash = user[0]['cash']
         user_name = user[0]['username']
         total_user_money += user_cash
@@ -76,7 +77,8 @@ def index():
     except Exception as e:
         return apology(e, 500)
 
-    return render_template("index.html", user_data=user_data, user_cash=usd(user_cash), total_user_money=usd(total_user_money))
+    return render_template("index.html", user_data=user_data, user_cash=usd(user_cash),
+                           total_user_money=usd(total_user_money))
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -140,7 +142,7 @@ def buy():
                 total_cost=total_cost)
 
             db.execute('UPDATE users SET cash = :cash WHERE id=:id',
-                       cash=(user_cash-total_cost),
+                       cash=(user_cash - total_cost),
                        id=user_id)
 
         except Exception as e:
@@ -272,7 +274,17 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
-    return apology("TODO")
+    user_id = int(session['user_id'])
+    if request.method == 'POST':
+        return apology("TODO")
+
+    try:
+        user_shares_symbol = db.execute("SELECT DiSTINCT(company_symbol) FROM stocks_purchased WHERE id = :id",
+                                        id=user_id)
+        user_shares_symbol = [x["company_symbol"] for x in user_shares_symbol]
+        return render_template("sell.html", symbols=user_shares_symbol)
+    except Exception as e:
+        return apology(str(e), 500)
 
 
 def errorhandler(e):
