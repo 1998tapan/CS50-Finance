@@ -29,17 +29,25 @@
 
     <script>
         document.getElementById("reg-form").onsubmit = function () {
-            if (!document.getElementById("username").value){
+            const username = document.getElementById("username").value;
+            const pwd =document.getElementById("password").value;
+            const confirm_pwd = document.getElementById("confirm-password").value;
+
+            if (!username){
                 alert("You must provide your username");
                 return false;
             }
-            else if(!document.getElementById("password").value){
+            else if(!pwd){
                 alert("You must provide password");
                 return false;
             }
 
-            else if(!document.getElementById("confirm-password").value){
+            else if(!confirm_pwd){
                 alert("You must provide confirm-password");
+                return false;
+            }
+            else if(pwd != confirm_pwd){
+                alert("Passwords do not match !")
                 return false;
             }
             return true;

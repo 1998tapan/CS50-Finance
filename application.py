@@ -51,8 +51,13 @@ def index():
     user_id = int(session['user_id'])
     try:
         # get user's total shares company wise and stock symbol
+        """
         user_data = db.execute(
             "SELECT company_symbol AS symbol, SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id GROUP BY company_symbol",
+            user_id=user_id)
+        """
+        user_data = db.execute(
+            "SELECT company_symbol AS symbol, shares FROM stocks_purchased WHERE id = :user_id",
             user_id=user_id)
         # fetch current price, company_name  of the stock from API via stock symbol
         # and add them to it's respective stock in user_data dict
@@ -129,17 +134,39 @@ def buy():
         if user_cash < total_cost:
             return apology("Insufficient funds", 403)
 
+        # check if user has some shares from that symbol. If they have, update that row
+        # else insert new row
         # add stocks purchase info to database
         # and if successful, deduct cash from user
+
         try:
-            db.execute(
-                'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price, total_cost) VALUES(:uid, :name, :sym, :share, :price, :total_cost)',
-                uid=user_id,
-                name=company_name,
-                sym=symbol,
-                share=shares,
-                price=stock_price,
-                total_cost=total_cost)
+            user_stock_row = db.execute("SELECT * FROM stocks_purchased WHERE id = :uid AND company_symbol = :symbol",
+                                        uid=user_id,
+                                        symbol=symbol)
+
+            if len(user_stock_row) > 0:
+                # {'id': 2, 'company_name': 'Apple, Inc.', 'company_symbol': 'AAPL', 'shares': 2, 'stock_price':
+                # '248.23', 'total_cost': 496.46, 'purchased_datetime': '2020-03-13 10:58:02'}
+                user_stock_row = user_stock_row[0]
+                # update total shares, total_cost, stock_price(to current price)
+                shares += user_stock_row['shares']
+                user_total_cost = total_cost + user_stock_row['total_cost']
+                db.execute("UPDATE stocks_purchased SET shares = :shares, stock_price = :price, total_cost = :total_cost WHERE id = :uid AND company_symbol = :symbol",
+                           shares=shares,
+                           price=stock_price,
+                           total_cost=user_total_cost,
+                           uid=user_id,
+                           symbol=symbol)
+
+            else:
+                db.execute(
+                    'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price, total_cost) VALUES(:uid, :name, :sym, :share, :price, :total_cost)',
+                    uid=user_id,
+                    name=company_name,
+                    sym=symbol,
+                    share=shares,
+                    price=stock_price,
+                    total_cost=total_cost)
 
             db.execute('UPDATE users SET cash = :cash WHERE id=:id',
                        cash=(user_cash - total_cost),
@@ -274,9 +301,57 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
+    return apology("TODO")
+
+    # id, company_name, company_symbol, shares, stock_price, total_cost
     user_id = int(session['user_id'])
     if request.method == 'POST':
-        return apology("TODO")
+        symbol = request.form['symbol']
+        shares = int(request.form['shares'])
+        sell_all = False
+
+        # get total shares of the symbol, "then" stock price
+        # get user cash
+        # check if shares to be sell are not more than total shares
+        # look up the current price of share
+        # multiply it to shares to be sell
+        # update user cash
+        # if sell_all = True, delete the entire row from "stocks_purchased" table in db
+        # update total shares
+        # update total_cost - should be deducted from "then" stock price,  not current
+
+        if not symbol:
+            return apology("Must provide a symbol", 403)
+
+        if not shares:
+            return apology("Must provide shares", 403)
+
+        user_total_shares = db.execute(
+            "SELECT SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id AND company_symbol = :symbol",
+            user_id=user_id,
+            symbol=symbol)
+        user_total_shares = int(user_total_shares[0]['shares'])
+
+        if shares > user_total_shares:
+            return apology("You don't have that much shares", 403)
+
+        if shares == user_total_shares:
+            sell_all = True
+
+        share_data = lookup(symbol)
+        now_share_price = share_data['price']
+        sell_price = now_share_price * shares
+
+        user_cash = db.execute("SELECT cash FROM users WHERE id = :user_id",
+                               user_id=user_id)
+        user_cash = int(user_cash[0]['cash'])
+        user_cash += sell_price
+
+        if sell_all:
+            db.execute("DELETE from stocks_purchased WHERE id = :user_id AND company_symbol = :symbol")
+        else:
+            remaining_shares = user_total_shares - shares
+            # db.execute("UPDATE stocks_purchased ")
 
     try:
         user_shares_symbol = db.execute("SELECT DiSTINCT(company_symbol) FROM stocks_purchased WHERE id = :id",
