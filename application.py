@@ -80,7 +80,7 @@ def index():
         total_user_money += user_cash
 
     except Exception as e:
-        return apology(e, 500)
+        return apology(str(e), 500)
 
     return render_template("index.html", user_data=user_data, user_cash=usd(user_cash),
                            total_user_money=usd(total_user_money))
@@ -301,7 +301,6 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
-    return apology("TODO")
 
     # id, company_name, company_symbol, shares, stock_price, total_cost
     user_id = int(session['user_id'])
@@ -327,7 +326,7 @@ def sell():
             return apology("Must provide shares", 403)
 
         user_total_shares = db.execute(
-            "SELECT SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id AND company_symbol = :symbol",
+            "SELECT shares FROM stocks_purchased WHERE id = :user_id AND company_symbol = :symbol",
             user_id=user_id,
             symbol=symbol)
         user_total_shares = int(user_total_shares[0]['shares'])
@@ -348,18 +347,31 @@ def sell():
         user_cash += sell_price
 
         if sell_all:
-            db.execute("DELETE from stocks_purchased WHERE id = :user_id AND company_symbol = :symbol")
+            db.execute("DELETE from stocks_purchased WHERE id = :user_id AND company_symbol = :symbol",
+                       user_id=user_id,
+                       symbol=symbol)
         else:
             remaining_shares = user_total_shares - shares
-            # db.execute("UPDATE stocks_purchased ")
+            db.execute("UPDATE stocks_purchased SET shares = :shares WHERE id = :user_id AND company_symbol = :symbol",
+                       shares=remaining_shares,
+                       user_id=user_id,
+                       symbol=symbol)
+        # update user cash
+        db.execute("UPDATE users SET cash = :user_cash WHERE id = :id",
+                   user_cash=user_cash,
+                   id=user_id)
 
-    try:
-        user_shares_symbol = db.execute("SELECT DiSTINCT(company_symbol) FROM stocks_purchased WHERE id = :id",
-                                        id=user_id)
-        user_shares_symbol = [x["company_symbol"] for x in user_shares_symbol]
-        return render_template("sell.html", symbols=user_shares_symbol)
-    except Exception as e:
-        return apology(str(e), 500)
+        flash("Shares sold !")
+        return redirect("/")
+
+    else:
+        try:
+            user_shares_symbol = db.execute("SELECT company_symbol FROM stocks_purchased WHERE id = :id",
+                                            id=user_id)
+            user_shares_symbol = [x["company_symbol"] for x in user_shares_symbol]
+            return render_template("sell.html", symbols=user_shares_symbol)
+        except Exception as e:
+            return apology(str(e), 500)
 
 
 def errorhandler(e):
