@@ -51,11 +51,6 @@ def index():
     user_id = int(session['user_id'])
     try:
         # get user's total shares company wise and stock symbol
-        """
-        user_data = db.execute(
-            "SELECT company_symbol AS symbol, SUM(shares) AS shares FROM stocks_purchased WHERE id = :user_id GROUP BY company_symbol",
-            user_id=user_id)
-        """
         user_data = db.execute(
             "SELECT company_symbol AS symbol, shares FROM stocks_purchased WHERE id = :user_id",
             user_id=user_id)
@@ -149,24 +144,44 @@ def buy():
                 # '248.23', 'total_cost': 496.46, 'purchased_datetime': '2020-03-13 10:58:02'}
                 user_stock_row = user_stock_row[0]
                 # update total shares, total_cost, stock_price(to current price)
-                shares += user_stock_row['shares']
+                total_shares = shares + user_stock_row['shares']
                 user_total_cost = total_cost + user_stock_row['total_cost']
+
                 db.execute("UPDATE stocks_purchased SET shares = :shares, stock_price = :price, total_cost = :total_cost WHERE id = :uid AND company_symbol = :symbol",
-                           shares=shares,
+                           shares=total_shares,
                            price=stock_price,
                            total_cost=user_total_cost,
                            uid=user_id,
                            symbol=symbol)
 
+                # add to history
+                db.execute("INSERT INTO user_history(id, type, company_symbol, company_name, shares, price) VALUES(:uid, :type, :symbol, :name, :shares, :price)",
+                           uid=user_id,
+                           type='BUY',
+                           symbol=symbol,
+                           name=company_name,
+                           shares=shares,
+                           price=total_cost)
+
             else:
                 db.execute(
-                    'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price, total_cost) VALUES(:uid, :name, :sym, :share, :price, :total_cost)',
+                    'INSERT INTO stocks_purchased(id, company_name, company_symbol, shares, stock_price, total_cost) VALUES(:uid, :name, :sym, :shares, :price, :total_cost)',
                     uid=user_id,
                     name=company_name,
                     sym=symbol,
-                    share=shares,
+                    shares=shares,
                     price=stock_price,
                     total_cost=total_cost)
+
+                # add to history
+                db.execute(
+                    "INSERT INTO user_history(id, type, company_symbol, company_name, shares, price) VALUES(:uid, :type, :symbol, :name, :shares, :price)",
+                    uid=user_id,
+                    type='BUY',
+                    symbol=symbol,
+                    name=company_name,
+                    shares=shares,
+                    price=total_cost)
 
             db.execute('UPDATE users SET cash = :cash WHERE id=:id',
                        cash=(user_cash - total_cost),
@@ -192,7 +207,11 @@ def buy():
 @login_required
 def history():
     """Show history of transactions"""
-    return apology("TODO")
+    user_id=  int(session['user_id'])
+    user_history = db.execute("SELECT * FROM user_history WHERE id = :uid",
+                              uid=user_id)
+
+    return render_template("history.html", history=user_history)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -224,6 +243,12 @@ def login():
         # Remember which user has logged in
         session["user_id"] = rows[0]["id"]
 
+        # add to history
+        user_id = int(session['user_id'])
+        db.execute("INSERT INTO user_history(id, type) VALUES(:uid, :type)",
+                   uid=user_id,
+                   type='LOGIN')
+
         # Redirect user to home page
         return redirect("/")
 
@@ -235,6 +260,12 @@ def login():
 @app.route("/logout")
 def logout():
     """Log user out"""
+
+    # add to history
+    user_id = int(session['user_id'])
+    db.execute("INSERT INTO user_history(id, type) VALUES(:uid, :type)",
+               uid=user_id,
+               type='LOGOUT')
 
     # Forget any user_id
     session.clear()
@@ -339,6 +370,7 @@ def sell():
 
         share_data = lookup(symbol)
         now_share_price = share_data['price']
+        company_name = share_data['name']
         sell_price = now_share_price * shares
 
         user_cash = db.execute("SELECT cash FROM users WHERE id = :user_id",
@@ -347,15 +379,38 @@ def sell():
         user_cash += sell_price
 
         if sell_all:
+            # delete the row
             db.execute("DELETE from stocks_purchased WHERE id = :user_id AND company_symbol = :symbol",
                        user_id=user_id,
                        symbol=symbol)
+
+            # add to history
+            db.execute(
+                "INSERT INTO user_history(id, type, company_symbol, company_name, shares, price) VALUES(:uid, :type, :symbol, :name, :shares, :price)",
+                uid=user_id,
+                type='SELL',
+                symbol=symbol,
+                name=company_name,
+                shares=shares,
+                price=sell_price)
+
         else:
             remaining_shares = user_total_shares - shares
             db.execute("UPDATE stocks_purchased SET shares = :shares WHERE id = :user_id AND company_symbol = :symbol",
                        shares=remaining_shares,
                        user_id=user_id,
                        symbol=symbol)
+
+            # add to history
+            db.execute(
+                "INSERT INTO user_history(id, type, company_symbol, company_name, shares, price) VALUES(:uid, :type, :symbol, :name, :shares, :price)",
+                uid=user_id,
+                type='SELL',
+                symbol=symbol,
+                name=company_name,
+                shares=shares,
+                price=sell_price)
+
         # update user cash
         db.execute("UPDATE users SET cash = :user_cash WHERE id = :id",
                    user_cash=user_cash,
@@ -384,3 +439,6 @@ def errorhandler(e):
 # Listen for errors
 for code in default_exceptions:
     app.errorhandler(code)(errorhandler)
+
+if __name__ == "__main__":
+    app.run()
